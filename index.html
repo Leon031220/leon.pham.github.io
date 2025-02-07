@@ -1,0 +1,256 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taschenrechner</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: rgb(25, 25, 25);
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            overflow: hidden;
+        }
+
+        #resultArea {
+            flex: 1;
+            background-color: rgb(40, 40, 40);
+            color: white;
+            font-size: 48px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            padding: 24px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            background-color: rgb(25, 25, 25);
+            border-collapse: collapse;
+        }
+
+        td {
+            width: 25%;
+            text-align: center;
+            background-color: rgb(20, 20, 20);
+            font-size: 22px;
+            padding: 20px;
+            cursor: pointer;
+        }
+
+        td:hover {
+            background-color: rgb(30, 30, 30);
+        }
+
+        .result {
+            background-color: rgb(67, 55, 236);
+        }
+
+        .result:hover {
+            background-color: rgb(110, 101, 235);
+        }
+
+        #history {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(40, 40, 40, 0.9);
+            padding: 10px;
+            height: 150px;
+            border-top: 1px solid rgb(60, 60, 60);
+            display: none;
+            overflow-y: auto;
+        }
+
+        #history ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #history li {
+            margin: 5px 0;
+            cursor: pointer;
+            font-size: 20px;
+            padding: 5px;
+        }
+
+        #history li:hover {
+            background-color: rgb(60, 60, 60);
+        }
+
+        .historyTimestamp {
+            font-size: 14px;
+            color: rgb(180, 180, 180);
+        }
+
+        #clearHistory {
+            display: block;
+            margin: 0 auto;
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        #history::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="resultArea"></div>
+
+    <table>
+        <tr>
+            <td onclick="appendOperation('!')">!</td>
+            <td onclick="appendOperation(' % ')">Rest</td>
+            <td onclick="appendOperation('(')">(</td>
+            <td onclick="appendOperation(')')">)</td>
+        </tr>
+        <tr>
+            <td onclick="appendOperation('p')">π</td>
+            <td onclick="appendOperation(' ** ')">Potenz</td>
+            <td onclick="deleteAll()">C</td>
+            <td onclick="deleteLast()">DEL</td>
+        </tr>
+        <tr>
+            <td onclick="appendOperation('7')">7</td>
+            <td onclick="appendOperation('8')">8</td>
+            <td onclick="appendOperation('9')">9</td>
+            <td onclick="appendOperation(' / ')">÷</td>
+        </tr>
+        <tr>
+            <td onclick="appendOperation('4')">4</td>
+            <td onclick="appendOperation('5')">5</td>
+            <td onclick="appendOperation('6')">6</td>
+            <td onclick="appendOperation(' * ')">x</td>
+        </tr>
+        <tr>
+            <td onclick="appendOperation('1')">1</td>
+            <td onclick="appendOperation('2')">2</td>
+            <td onclick="appendOperation('3')">3</td>
+            <td onclick="appendOperation(' + ')">+</td>
+        </tr>
+        <tr>
+            <td onclick="appendOperation('0')">0</td>
+            <td onclick="appendOperation('.')">,</td>
+            <td onclick="calculateResult()" class="result">=</td>
+            <td onclick="appendOperation(' - ')">-</td>
+        </tr>
+    </table>
+
+    <div id="history">
+        <button id="clearHistory" onclick="clearHistory()">Verlauf löschen</button>
+        <ul id="historyList"></ul>
+    </div>
+
+    <script>
+        let history = JSON.parse(localStorage.getItem('history')) || [];
+
+        document.addEventListener('keydown', function(event) {
+            let key = event.key;
+            if ('0123456789'.includes(key)) appendOperation(key);
+            if (key === '!' || key === 'r' || key === '%') appendOperation(key === 'r' ? ' % ' : key);
+            if (key === 'p') appendOperation('3.141592653589793');
+            if (key === '^') appendOperation(' ** ');
+            if (key === ',') appendOperation('.');
+            if (key === 'Backspace') deleteLast();
+            if (key === 'c') deleteAll();
+            if (key === 'Enter' || key === '=') calculateResult();
+            if (key === 'v') toggleHistory();
+        });
+
+        function appendOperation(operation) {
+            let resultArea = document.getElementById('resultArea');
+            let current = resultArea.innerHTML.trim();
+            if ('+-*/%'.includes(operation.trim())) {
+                resultArea.innerHTML += ` ${operation} `;
+            } else {
+                resultArea.innerHTML += operation;
+            }
+        }
+
+        function calculateResult() {
+            let resultArea = document.getElementById('resultArea');
+            let expression = resultArea.innerHTML.trim();
+
+            if (expression.includes('!')) {
+                expression = expression.replace(/(\d+)!/g, (_, num) => factorial(parseInt(num)));
+            }
+
+            try {
+                let resultValue = eval(expression);
+                if (isNaN(resultValue)) throw "Error";
+                resultArea.innerHTML = resultValue;
+                saveToHistory(expression, resultValue);
+            } catch {
+                resultArea.innerHTML = 'Error';
+            }
+        }
+
+        function factorial(n) {
+            if (n < 0) return 'Error';
+            let result = 1;
+            for (let i = 2; i <= n; i++) result *= i;
+            return result;
+        }
+
+        function deleteLast() {
+            let resultArea = document.getElementById("resultArea");
+            let content = resultArea.innerHTML.trim();
+            if (content.endsWith(' ')) {
+                resultArea.innerHTML = content.slice(0, -3);
+            } else {
+                resultArea.innerHTML = content.slice(0, -1);
+            }
+        }
+
+        function deleteAll() {
+            document.getElementById("resultArea").innerHTML = "";
+        }
+
+        function toggleHistory() {
+            let historyElement = document.getElementById('history');
+            historyElement.style.display = historyElement.style.display === "block" ? "none" : "block";
+        }
+
+        function saveToHistory(expression, result) {
+            let timestamp = new Date().toLocaleString();
+            history.push(`${expression} = ${result} <br><span class="historyTimestamp">${timestamp}</span>`);
+            updateHistory();
+            localStorage.setItem('history', JSON.stringify(history));
+        }
+
+        function updateHistory() {
+            let historyList = document.getElementById('historyList');
+            historyList.innerHTML = history.map((entry, index) => `<li onclick="restoreCalculation(${index})">${entry}</li>`).join('');
+        }
+
+        function restoreCalculation(index) {
+            document.getElementById('resultArea').innerHTML = history[index].split(' = ')[0];
+        }
+
+        function clearHistory() {
+            history = [];
+            updateHistory();
+            localStorage.setItem('history', JSON.stringify(history));
+        }
+        updateHistory();
+    </script>
+</body>
+</html>
